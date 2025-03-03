@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useGame } from '@/context/GameContext';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { Plus, ArrowRight } from 'lucide-react';
 
 const RoomJoin: React.FC = () => {

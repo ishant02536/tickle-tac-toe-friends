@@ -1,5 +1,4 @@
-
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 type Player = 'X' | 'O';
 type Cell = Player | null;
