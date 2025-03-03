@@ -36,6 +36,9 @@ const Index = () => {
           <div className="mt-8 text-center text-xs text-muted-foreground">
             <p>Play with friends across different devices</p>
           </div>
+          <div className="mt-4 text-center text-xs text-muted-foreground font-semibold">
+            <p>Made by Ishant</p>
+          </div>
         </div>
       </div>
     </GameProvider>
