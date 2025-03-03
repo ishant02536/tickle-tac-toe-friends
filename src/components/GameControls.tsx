@@ -2,7 +2,7 @@
 import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, LogOut } from 'lucide-react';
+import { RefreshCw, LogOut, Bot, User } from 'lucide-react';
 
 const GameControls: React.FC = () => {
   const { gameState, restartGame, leaveRoom, playerSymbol, isYourTurn, waitingForOpponent } = useGame();
@@ -40,11 +40,20 @@ const GameControls: React.FC = () => {
     if (gameState.status === 'playing') {
       return (
         <div className="flex flex-col items-center gap-3">
-          <div className="chip">
-            {playerSymbol === 'X' ? 'You are X' : 'You are O'}
+          <div className="flex items-center gap-2">
+            <div className="chip">
+              {playerSymbol === 'X' ? 'You are X' : 'You are O'}
+            </div>
+            {gameState.gameMode === 'ai' && (
+              <div className="chip bg-blue-100 text-blue-800">
+                <Bot className="w-3 h-3 mr-1" />
+                AI: {gameState.aiDifficulty}
+              </div>
+            )}
           </div>
           <div className={`text-lg font-medium ${isYourTurn ? 'text-primary animate-pulse-light' : 'text-muted-foreground'}`}>
-            {isYourTurn ? "Your turn" : "Opponent's turn"}
+            {isYourTurn ? "Your turn" : 
+              gameState.gameMode === 'ai' ? "AI is thinking..." : "Opponent's turn"}
           </div>
         </div>
       );
@@ -53,8 +62,41 @@ const GameControls: React.FC = () => {
     return <div>Connecting to game...</div>;
   };
   
+  const renderPlayers = () => {
+    if (gameState.gameMode === 'multiplayer' && gameState.status === 'playing') {
+      return (
+        <div className="flex justify-center gap-8 mb-4 text-sm">
+          <div className="flex items-center gap-1">
+            <User className="w-3 h-3" /> 
+            <span>Player X</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <User className="w-3 h-3" /> 
+            <span>Player O</span>
+          </div>
+        </div>
+      );
+    } else if (gameState.gameMode === 'ai' && gameState.status === 'playing') {
+      return (
+        <div className="flex justify-center gap-8 mb-4 text-sm">
+          <div className="flex items-center gap-1">
+            <User className="w-3 h-3" /> 
+            <span>You (X)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Bot className="w-3 h-3" /> 
+            <span>AI (O)</span>
+          </div>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+  
   return (
     <div className="flex flex-col items-center justify-center gap-6 w-full max-w-sm">
+      {renderPlayers()}
       {renderStatus()}
       
       <div className="flex gap-3 mt-4">
