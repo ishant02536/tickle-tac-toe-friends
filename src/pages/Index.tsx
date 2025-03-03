@@ -29,6 +29,9 @@ const Index = () => {
     <GameProvider>
       <div className="min-h-screen w-full flex items-center justify-center p-6 bg-gradient-to-b from-white to-gray-50">
         <div className="page-transition-container">
+          <div className="mb-6 text-center text-xl font-semibold text-primary">
+            Made By Ishant
+          </div>
           <div className="relative w-full max-w-md">
             <div className="absolute -z-10 inset-0 bg-gradient-to-r from-blue-50 to-green-50 rounded-[40px] blur-3xl opacity-50 animate-float"></div>
             <GameUI />
