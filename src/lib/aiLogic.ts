@@ -1,10 +1,11 @@
 // AI difficulty levels
-export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'adaptive';
 
 // Get AI move based on current board state and difficulty
 export const getAIMove = (
   board: (string | null)[][],
-  difficulty: Difficulty
+  difficulty: Difficulty,
+  moveHistory?: Array<{board: (string | null)[][], move: [number, number], player: string}>
 ): [number, number] => {
   switch (difficulty) {
     case 'easy':
@@ -13,6 +14,8 @@ export const getAIMove = (
       return getMediumMove(board);
     case 'hard':
       return getHardMove(board);
+    case 'adaptive':
+      return getAdaptiveMove(board, moveHistory || []);
     default:
       return getEasyMove(board);
   }
@@ -71,6 +74,98 @@ const getHardMove = (board: (string | null)[][]): [number, number] => {
   
   // Otherwise take any available move
   return getEasyMove(board);
+};
+
+// Adaptive: Learn from player's previous moves and counter their patterns
+const getAdaptiveMove = (
+  board: (string | null)[][],
+  moveHistory: Array<{board: (string | null)[][], move: [number, number], player: string}>
+): [number, number] => {
+  // First, check if we can win
+  const winningMove = findWinningMove(board, 'O');
+  if (winningMove) {
+    return winningMove;
+  }
+  
+  // Then check if we need to block
+  const blockingMove = findWinningMove(board, 'X');
+  if (blockingMove) {
+    return blockingMove;
+  }
+  
+  // Look for patterns in player's move history
+  if (moveHistory.length >= 2) {
+    // Get only the player's moves
+    const playerMoves = moveHistory.filter(item => item.player === 'X');
+    
+    // Try to find a pattern: if the player tends to play in corners, edges, or center
+    const cornerMoves = playerMoves.filter(({move}) => 
+      (move[0] === 0 && move[1] === 0) || 
+      (move[0] === 0 && move[1] === 2) || 
+      (move[0] === 2 && move[1] === 0) || 
+      (move[0] === 2 && move[1] === 2)
+    ).length;
+    
+    const edgeMoves = playerMoves.filter(({move}) => 
+      (move[0] === 0 && move[1] === 1) || 
+      (move[0] === 1 && move[1] === 0) || 
+      (move[0] === 1 && move[1] === 2) || 
+      (move[0] === 2 && move[1] === 1)
+    ).length;
+    
+    const centerMoves = playerMoves.filter(({move}) => 
+      move[0] === 1 && move[1] === 1
+    ).length;
+    
+    // Find their most common move type and counter it
+    const movePreferences = [
+      { type: 'corner', count: cornerMoves },
+      { type: 'edge', count: edgeMoves },
+      { type: 'center', count: centerMoves }
+    ].sort((a, b) => b.count - a.count);
+    
+    // If player prefers corners, take center and edges
+    if (movePreferences[0].type === 'corner' && movePreferences[0].count > 0) {
+      // Take center if available
+      if (board[1][1] === null) {
+        return [1, 1];
+      }
+      
+      // Otherwise take an edge
+      const edges: [number, number][] = [[0, 1], [1, 0], [1, 2], [2, 1]];
+      const availableEdges = edges.filter(([r, c]) => board[r][c] === null);
+      if (availableEdges.length > 0) {
+        return availableEdges[Math.floor(Math.random() * availableEdges.length)];
+      }
+    }
+    
+    // If player prefers edges, take center and corners
+    if (movePreferences[0].type === 'edge' && movePreferences[0].count > 0) {
+      // Take center if available
+      if (board[1][1] === null) {
+        return [1, 1];
+      }
+      
+      // Otherwise take a corner
+      const corners: [number, number][] = [[0, 0], [0, 2], [2, 0], [2, 2]];
+      const availableCorners = corners.filter(([r, c]) => board[r][c] === null);
+      if (availableCorners.length > 0) {
+        return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+      }
+    }
+    
+    // If player prefers center, take corners
+    if (movePreferences[0].type === 'center' && movePreferences[0].count > 0) {
+      const corners: [number, number][] = [[0, 0], [0, 2], [2, 0], [2, 2]];
+      const availableCorners = corners.filter(([r, c]) => board[r][c] === null);
+      if (availableCorners.length > 0) {
+        return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+      }
+    }
+  }
+  
+  // If we don't have enough data yet or can't find patterns, use hard strategy
+  return getHardMove(board);
 };
 
 // Helper: Get all available moves on the board

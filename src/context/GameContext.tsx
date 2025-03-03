@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import socketService from '@/lib/socketService';
 import { toast } from 'sonner';
@@ -9,6 +8,12 @@ type Cell = Player | null;
 type GameBoard = Cell[][];
 type GameStatus = 'waiting' | 'playing' | 'ended';
 type GameMode = 'multiplayer' | 'ai';
+
+interface MoveHistoryItem {
+  board: GameBoard;
+  move: [number, number];
+  player: string;
+}
 
 interface GameState {
   board: GameBoard;
@@ -23,6 +28,7 @@ interface GameState {
   roomCode: string;
   gameMode: GameMode;
   aiDifficulty?: Difficulty;
+  moveHistory: MoveHistoryItem[];
 }
 
 interface GameContextType {
@@ -48,15 +54,14 @@ const initialGameState: GameState = {
   winner: null,
   roomCode: '',
   gameMode: 'multiplayer',
+  moveHistory: []
 };
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [playerSymbol, setPlayerSymbol] = useState<Player | null>(null);
   
-  // Function to check for a winner
   const checkWinner = useCallback((board: GameBoard): { winner: Player | 'draw' | null, winningCells?: [number, number][] } => {
-    // Check rows
     for (let i = 0; i < 3; i++) {
       if (board[i][0] && board[i][0] === board[i][1] && board[i][0] === board[i][2]) {
         return { 
@@ -66,7 +71,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     
-    // Check columns
     for (let j = 0; j < 3; j++) {
       if (board[0][j] && board[0][j] === board[1][j] && board[0][j] === board[2][j]) {
         return { 
@@ -76,7 +80,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     
-    // Check diagonals
     if (board[0][0] && board[0][0] === board[1][1] && board[0][0] === board[2][2]) {
       return { 
         winner: board[0][0] as Player, 
@@ -91,17 +94,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
     
-    // Check for a draw (all cells filled)
     const isBoardFull = board.every(row => row.every(cell => cell !== null));
     if (isBoardFull) {
       return { winner: 'draw' };
     }
     
-    // No winner yet
     return { winner: null };
   }, []);
   
-  // AI move logic
   useEffect(() => {
     if (
       gameState.gameMode === 'ai' && 
@@ -109,15 +109,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       gameState.currentPlayer === 'O' &&
       gameState.aiDifficulty
     ) {
-      // Add a small delay to make the AI move feel more natural
       const timer = setTimeout(() => {
-        const [row, col] = getAIMove(gameState.board, gameState.aiDifficulty as Difficulty);
+        const [row, col] = getAIMove(
+          gameState.board, 
+          gameState.aiDifficulty as Difficulty,
+          gameState.aiDifficulty === 'adaptive' ? gameState.moveHistory : undefined
+        );
         
-        // Update the board with AI's move
         const newBoard = gameState.board.map(row => [...row]);
         newBoard[row][col] = 'O';
         
-        // Check for winner after AI move
+        const newMoveHistory = [...gameState.moveHistory];
+        newMoveHistory.push({
+          board: gameState.board.map(row => [...row]),
+          move: [row, col],
+          player: 'O'
+        });
+        
         const { winner, winningCells } = checkWinner(newBoard);
         
         setGameState(prev => ({
@@ -126,21 +134,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentPlayer: 'X',
           winner,
           winningCells,
-          status: winner ? 'ended' : 'playing'
+          status: winner ? 'ended' : 'playing',
+          moveHistory: newMoveHistory
         }));
-      }, 700); // 700ms delay
+      }, 700);
       
       return () => clearTimeout(timer);
     }
   }, [gameState, checkWinner]);
   
   useEffect(() => {
-    // Connect to socket service for multiplayer
     socketService.connect();
     
-    // Subscribe to game state updates from socket service
     const unsubscribe = socketService.subscribe((state) => {
-      // Only update if in multiplayer mode
       if (gameState.gameMode === 'multiplayer') {
         setGameState(prev => ({
           ...state,
@@ -150,7 +156,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
     
-    // Set initial player symbol for multiplayer
     if (gameState.gameMode === 'multiplayer') {
       setPlayerSymbol(socketService.getCurrentPlayer());
     }
@@ -160,7 +165,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [gameState.gameMode]);
   
-  // Update player symbol when it changes in the socket service
   useEffect(() => {
     if (gameState.gameMode === 'multiplayer') {
       setPlayerSymbol(socketService.getCurrentPlayer());
@@ -193,7 +197,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const startAIGame = (difficulty: Difficulty) => {
-    // Setup a game against AI
     setGameState({
       board: Array(3).fill(null).map(() => Array(3).fill(null)),
       currentPlayer: 'X',
@@ -205,7 +208,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       winner: null,
       roomCode: 'AI-' + Math.random().toString(36).substring(2, 6).toUpperCase(),
       gameMode: 'ai',
-      aiDifficulty: difficulty
+      aiDifficulty: difficulty,
+      moveHistory: []
     });
     
     setPlayerSymbol('X');
@@ -216,7 +220,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (gameState.gameMode === 'multiplayer') {
       return socketService.makeMove(row, col);
     } else {
-      // Handle move in AI mode locally
       if (
         gameState.status !== 'playing' || 
         gameState.currentPlayer !== playerSymbol ||
@@ -225,11 +228,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
       
-      // Update the board with player's move
       const newBoard = gameState.board.map(r => [...r]);
       newBoard[row][col] = playerSymbol as Player;
       
-      // Check for winner after player move
+      const newMoveHistory = [...gameState.moveHistory];
+      newMoveHistory.push({
+        board: gameState.board.map(row => [...row]),
+        move: [row, col],
+        player: playerSymbol as Player
+      });
+      
       const { winner, winningCells } = checkWinner(newBoard);
       
       setGameState(prev => ({
@@ -238,7 +246,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentPlayer: 'O',
         winner,
         winningCells,
-        status: winner ? 'ended' : 'playing'
+        status: winner ? 'ended' : 'playing',
+        moveHistory: newMoveHistory
       }));
       
       return true;
@@ -249,14 +258,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (gameState.gameMode === 'multiplayer') {
       socketService.restartGame();
     } else {
-      // Restart AI game locally
+      const moveHistory = gameState.aiDifficulty === 'adaptive' ? gameState.moveHistory : [];
+      
       setGameState(prev => ({
         ...prev,
         board: Array(3).fill(null).map(() => Array(3).fill(null)),
         currentPlayer: 'X',
         status: 'playing',
         winner: null,
-        winningCells: undefined
+        winningCells: undefined,
+        moveHistory
       }));
       toast.success('Game restarted');
     }
@@ -267,16 +278,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socketService.leaveRoom();
     }
     
-    // Reset game state
     setGameState(initialGameState);
     setPlayerSymbol(null);
     toast.info('Left the game');
   };
   
-  // Calculate if it's the current player's turn
   const isYourTurn = playerSymbol !== null && gameState.currentPlayer === playerSymbol;
   
-  // Calculate if we're waiting for an opponent to join
   const waitingForOpponent = 
     gameState.gameMode === 'multiplayer' && 
     gameState.status === 'waiting' && 

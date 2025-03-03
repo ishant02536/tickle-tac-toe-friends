@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useGame } from '@/context/GameContext';
 import { toast } from 'sonner';
-import { Plus, ArrowRight, Bot, Users } from 'lucide-react';
+import { Plus, ArrowRight, Bot, Users, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Difficulty } from '@/lib/aiLogic';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -118,6 +118,13 @@ const RoomJoin: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="hard" id="hard" />
                   <Label htmlFor="hard" className="font-normal">Hard - Plays strategically</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="adaptive" id="adaptive" />
+                  <Label htmlFor="adaptive" className="flex items-center gap-1 font-normal">
+                    <Brain className="w-3 h-3" />
+                    Adaptive - Learns from your play style
+                  </Label>
                 </div>
               </RadioGroup>
             </div>

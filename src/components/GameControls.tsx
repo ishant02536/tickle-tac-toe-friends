@@ -2,7 +2,7 @@
 import React from 'react';
 import { useGame } from '@/context/GameContext';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, LogOut, Bot, User } from 'lucide-react';
+import { RefreshCw, LogOut, Bot, User, Brain } from 'lucide-react';
 
 const GameControls: React.FC = () => {
   const { gameState, restartGame, leaveRoom, playerSymbol, isYourTurn, waitingForOpponent } = useGame();
@@ -45,9 +45,18 @@ const GameControls: React.FC = () => {
               {playerSymbol === 'X' ? 'You are X' : 'You are O'}
             </div>
             {gameState.gameMode === 'ai' && (
-              <div className="chip bg-blue-100 text-blue-800">
-                <Bot className="w-3 h-3 mr-1" />
-                AI: {gameState.aiDifficulty}
+              <div className={`chip ${gameState.aiDifficulty === 'adaptive' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                {gameState.aiDifficulty === 'adaptive' ? (
+                  <>
+                    <Brain className="w-3 h-3 mr-1" />
+                    AI: Adaptive
+                  </>
+                ) : (
+                  <>
+                    <Bot className="w-3 h-3 mr-1" />
+                    AI: {gameState.aiDifficulty}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -55,6 +64,11 @@ const GameControls: React.FC = () => {
             {isYourTurn ? "Your turn" : 
               gameState.gameMode === 'ai' ? "AI is thinking..." : "Opponent's turn"}
           </div>
+          {gameState.aiDifficulty === 'adaptive' && gameState.moveHistory.length > 0 && (
+            <div className="text-xs text-purple-600 mt-1">
+              AI has learned from {Math.floor(gameState.moveHistory.length / 2)} of your moves
+            </div>
+          )}
         </div>
       );
     }
